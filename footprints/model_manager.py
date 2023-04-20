@@ -8,7 +8,7 @@ import os
 
 import torch
 
-from .network import FootprintNetwork
+from network import FootprintNetwork
 
 
 class ModelManager:

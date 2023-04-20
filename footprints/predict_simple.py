@@ -14,8 +14,8 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from torchvision import transforms
 
-from footprints.model_manager import ModelManager
-from footprints.utils import sigmoid_to_depth, download_model_if_doesnt_exist, pil_loader, MODEL_DIR
+from model_manager import ModelManager
+from utils import sigmoid_to_depth, download_model_if_doesnt_exist, pil_loader, MODEL_DIR
 
 
 MODEL_HEIGHT_WIDTH = {
@@ -66,18 +66,38 @@ class InferenceManager:
         original_image, preprocessed_image = self._load_and_preprocess_image(image_path)
         pred = self.model_manager.model(preprocessed_image)
         pred = pred['1/1'].data.cpu().numpy().squeeze(0)
+        # pred 4 channels are: S: visible ground seg, D: visible depth map, 
+        # S*: hidden ground seg, D*: depth map of hidden ground
 
         filename, _ = os.path.splitext(os.path.basename(image_path))
         npy_save_path = os.path.join(self.save_dir, "outputs", filename + '.npy')
         print("└> Saving predictions to {}".format(npy_save_path))
         np.save(npy_save_path, pred)
+        ori_shape = original_image.size
 
         if self.save_visualisations:
-
+            fig, axs = plt.subplots(2,3)
             hidden_ground = cv2.resize(pred[1], original_image.size) > 0.5
             hidden_depth = cv2.resize(sigmoid_to_depth(pred[3]), original_image.size)
             original_image = np.array(original_image) / 255.0
-
+            axs[0,0].imshow(cv2.resize(pred[0], ori_shape) > 0.5)
+            axs[0,0].set_title(f'Visible ground seg')
+            axs[0,0].axis("off")
+            axs[0,1].imshow(cv2.resize(sigmoid_to_depth(pred[2]), ori_shape))
+            axs[0,1].set_title(f'Visible depth map')
+            axs[0,1].axis("off")
+            axs[0,2].imshow(original_image)
+            axs[0,2].set_title(f'original image')
+            axs[0,2].axis("off")
+            axs[1,0].imshow(hidden_ground)
+            axs[1,0].set_title(f'Hidden ground seg')
+            axs[1,0].axis("off")
+            axs[1,1].imshow(hidden_depth)
+            axs[1,1].set_title(f'Hidden depth map')
+            axs[1,1].axis("off")
+            fig_name = os.path.join(self.save_dir, "visualisations", f"{filename}_g_d.png")
+            plt.savefig(fig_name)
+            plt.close(fig)
             # normalise the relevant parts of the depth map and apply colormap
             _max = hidden_depth[hidden_ground].max()
             _min = hidden_depth[hidden_ground].min()
@@ -114,12 +134,12 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Simple prediction from a footprints model.')
 
-    parser.add_argument('--image', type=str,
-                        help='path to a test image or folder of images', required=True)
-    parser.add_argument('--model', type=str,
+    parser.add_argument('--image', type=str, default="test_data/test.jpg",
+                        help='path to a test image or folder of images', required=False)
+    parser.add_argument('--model', type=str, default="matterport",
                         help='name of a pretrained model to use',
                         choices=["kitti", "matterport", "handheld"])
-    parser.add_argument("--no_cuda",
+    parser.add_argument("--no_cuda", default=False,
                         help='if set, disables CUDA',
                         action='store_true')
     parser.add_argument("--no_save_vis",

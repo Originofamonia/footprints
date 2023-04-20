@@ -18,8 +18,8 @@ class FootprintNetwork(nn.Module):
         self.mask_decoder = SkipDecoder(apply_sigmoid=False)  # for stability when using BCE loss
         self.depth_decoder = SkipDecoder(apply_sigmoid=True)
 
-    def forward(self, input_image):
-        features = self.encoder(input_image)
+    def forward(self, input_image):  # [B, 3, 192, 640]
+        features = self.encoder(input_image)  # [[B,64,96,320],[B,64,48,160],[B,128,24,80],[B,256,12,40],[B,512,6,20]]
         mask_outputs = self.mask_decoder(features)
         depth_outputs = self.depth_decoder(features)
 

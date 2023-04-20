@@ -1,2 +1,5 @@
 __pycache__
 .DS_Store
+models
+predictions
+test_data
